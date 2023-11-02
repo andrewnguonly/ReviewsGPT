@@ -32,7 +32,7 @@ vectorstore = Chroma.from_documents(documents=all_splits,
 retriever = vectorstore.as_retriever()
 """
 def scrape_yelp_reviews(url) -> list[str]:
-    max_pages = 3
+    max_pages = 5
     reviews = []
 
     for i in range(max_pages):
@@ -67,7 +67,7 @@ def scrape_yelp_reviews(url) -> list[str]:
 
     return reviews
 
-reviews = scrape_yelp_reviews("https://www.yelp.com/biz/abv-san-francisco-2?sort_by=date_desc")
+reviews = scrape_yelp_reviews("https://www.yelp.com/biz/stout-burgers-and-beers-los-angeles?sort_by=date_desc")
 
 # Embed reviews
 vectorstore = Chroma.from_texts(
@@ -77,18 +77,23 @@ vectorstore = Chroma.from_texts(
 )
 retriever = vectorstore.as_retriever()
 query = "What are the favorite foods or drinks to try? Be specific. Return a list of 5 items."
-reviews = vectorstore.similarity_search(query)
+query_2 = "What are some foods or drinks to avoid? What was bad or regrettable?"
+reviews = vectorstore.similarity_search(query, k=20)
+
+for i, review in enumerate(reviews):
+    print(f"review #{i}:", review.page_content, "\n")
 
 template = """The following are customer reviews of a restaurant or bar:
 
 {context}
 
-Answer the following question based on the reviews: {question}
+If something is mentioned in multiple reviews, it is more likely to be preferred in the answer.
+Use specific names of foods, drinks, and cocktail names.
 
-The answers that are mentioned in multiple reviews are more likely to be preferred.
+Answer the following question based on the reviews: {question}
 """
 prompt = ChatPromptTemplate.from_template(template)
-model = ChatOpenAI()
+model = ChatOpenAI(model="gpt-4")
 
 def format_docs(docs):
     return "\n\n".join([d.page_content for d in docs])
