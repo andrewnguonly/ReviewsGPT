@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+import langchain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
@@ -9,7 +10,7 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnableParallel, RunnablePassthrough
 from langchain.vectorstores.chroma import Chroma
 
-
+langchain.debug = True
 load_dotenv()
 
 # Example for document loading (from url), splitting, and creating vectostore
@@ -67,7 +68,7 @@ def scrape_yelp_reviews(url) -> list[str]:
 
     return reviews
 
-reviews = scrape_yelp_reviews("https://www.yelp.com/biz/stout-burgers-and-beers-los-angeles?sort_by=date_desc")
+reviews = scrape_yelp_reviews("https://www.yelp.com/biz/abv-san-francisco-2?sort_by=yelp_sort")
 
 # Embed reviews
 vectorstore = Chroma.from_texts(
@@ -75,25 +76,30 @@ vectorstore = Chroma.from_texts(
     collection_name="yelp-reviews",
     embedding=OpenAIEmbeddings(),
 )
-retriever = vectorstore.as_retriever()
-query = "What are the favorite foods or drinks to try? Be specific. Return a list of 5 items."
+retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 20})
+query = "What are the favorite foods or drinks to try? Be specific. Return a list of 10 items."
 query_2 = "What are some foods or drinks to avoid? What was bad or regrettable?"
-reviews = vectorstore.similarity_search(query, k=20)
+# reviews = vectorstore.similarity_search(query, k=20)
 
 for i, review in enumerate(reviews):
-    print(f"review #{i}:", review.page_content, "\n")
+    pass
+    # print(f"review #{i}:", review.page_content, "\n")
 
 template = """The following are customer reviews of a restaurant or bar:
 
+BEGIN REVIEWS
+
 {context}
 
+END REVIEWS
+
 If something is mentioned in multiple reviews, it is more likely to be preferred in the answer.
-Use specific names of foods, drinks, and cocktail names.
+Use specific names of dishes, drinks, and cocktails.
 
 Answer the following question based on the reviews: {question}
 """
 prompt = ChatPromptTemplate.from_template(template)
-model = ChatOpenAI(model="gpt-4")
+model = ChatOpenAI(model="gpt-4", temperature=0, top_p=1, max_tokens=1024)
 
 def format_docs(docs):
     return "\n\n".join([d.page_content for d in docs])
