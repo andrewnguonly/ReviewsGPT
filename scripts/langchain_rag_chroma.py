@@ -1,7 +1,7 @@
+import langchain
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
-import langchain
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
@@ -68,7 +68,8 @@ def scrape_yelp_reviews(url) -> list[str]:
 
     return reviews
 
-reviews = scrape_yelp_reviews("https://www.yelp.com/biz/abv-san-francisco-2?sort_by=yelp_sort")
+biz_url = "https://www.yelp.com/biz/hatchet-hall-los-angeles"
+reviews = scrape_yelp_reviews(f"{biz_url}?sort_by=date_desc")
 
 # Embed reviews
 vectorstore = Chroma.from_texts(
