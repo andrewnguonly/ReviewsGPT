@@ -5,9 +5,8 @@ from dotenv import load_dotenv
 from langchain.chat_models import ChatOpenAI
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.prompts import ChatPromptTemplate
-from langchain.pydantic_v1 import BaseModel
 from langchain.schema.output_parser import StrOutputParser
-from langchain.schema.runnable import RunnableParallel, RunnablePassthrough
+from langchain.schema.runnable import RunnablePassthrough
 from langchain.vectorstores.chroma import Chroma
 
 langchain.debug = True
@@ -68,7 +67,7 @@ def scrape_yelp_reviews(url) -> list[str]:
 
     return reviews
 
-biz_url = "https://www.yelp.com/biz/hatchet-hall-los-angeles"
+biz_url = "https://www.yelp.com/biz/the-hideaway-beverly-hills"
 reviews = scrape_yelp_reviews(f"{biz_url}?sort_by=date_desc")
 
 # Embed reviews
@@ -78,13 +77,12 @@ vectorstore = Chroma.from_texts(
     embedding=OpenAIEmbeddings(),
 )
 retriever = vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 20})
-query = "What are the favorite foods or drinks to try? Be specific. Return a list of 10 items."
-query_2 = "What are some foods or drinks to avoid? What was bad or regrettable?"
-# reviews = vectorstore.similarity_search(query, k=20)
+query = "What are the favorite foods or drinks to try? Be specific. Return a list of 5 items."
 
-for i, review in enumerate(reviews):
-    pass
-    # print(f"review #{i}:", review.page_content, "\n")
+# reviews = vectorstore.similarity_search(query, k=20)
+# for i, review in enumerate(reviews):
+#     pass
+#     print(f"review #{i}:", review.page_content, "\n")
 
 template = """The following are customer reviews of a restaurant or bar:
 
