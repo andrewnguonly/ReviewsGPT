@@ -1,3 +1,4 @@
+import json
 import os
 
 import functions_framework
@@ -16,7 +17,7 @@ YELP_REVIEWS_MAX_PAGES = int(os.environ["YELP_REVIEWS_MAX_PAGES"])
 # Max number of documents to retrieve from vectorstore.
 VECTORSTORE_MAX_DOCS = int(os.environ["VECTORSTORE_MAX_DOCS"])
 
-PROMPT_TEMPLATE = """The following are customer reviews of a business:
+YELP_PROMPT_TEMPLATE = """The following are customer reviews of a business:
 
 BEGIN REVIEWS
 
@@ -45,6 +46,7 @@ def scrape_yelp_reviews(url: str) -> list[str]:
     for i in range(YELP_REVIEWS_MAX_PAGES):
         # start=0 is the first page, start=10 is the second page, etc.
         url_with_page = f"{url}&start={10*i}"
+        print(f"Retrieving reviews from URL: {url_with_page}")
         response = requests.get(url_with_page)
 
         if response.status_code == 200:
@@ -64,6 +66,7 @@ def scrape_yelp_reviews(url: str) -> list[str]:
                 f"Status code: {response.status_code}"
             )
 
+    print(f"Retrieved {len(reviews)} reviews")
     return reviews
 
 
@@ -73,14 +76,30 @@ def format_docs(docs) -> str:
 
 @functions_framework.http
 def main(request):
+    # Set CORS headers for the preflight request
+    if request.method == "OPTIONS":
+        # Allows GET requests from any origin with the Content-Type
+        # header and caches preflight response for an 3600s
+        headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Max-Age": "3600",
+        }
+
+        return ("", 204, headers)
+    
+    headers = {"Access-Control-Allow-Origin": "*"}
+
     # parse request body
     req_body = request.get_json()
     yelp_url = req_body.get("yelp_url", "").strip()
     question = req_body.get("question", "").strip()
+    print(f"Yelp URL: {yelp_url}, Question: {question}")
 
     # validate request body
     if not yelp_url or not question:
-        return ('{"error": "Invalid request"}', 400)
+        return ('{"error": "Invalid request"}', 400, headers)
     
     # clean URL, append sort_by query param
     yelp_url = clean_url(yelp_url)
@@ -89,9 +108,10 @@ def main(request):
     # get Yelp reviews
     reviews = scrape_yelp_reviews(yelp_url)
     if len(reviews) == 0:
-        return ('{"error": "No reviews"}', 500)
+        return ('{"error": "No reviews"}', 500, headers)
     
     # embed reviews
+    print("Loading reviews into vectorstore...")
     vectorstore = Chroma.from_texts(
         reviews,
         collection_name="yelp-reviews",
@@ -103,7 +123,7 @@ def main(request):
     )
 
     # prompt GPT with Langchain
-    prompt = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+    prompt = ChatPromptTemplate.from_template(YELP_PROMPT_TEMPLATE)
     model = ChatOpenAI(model="gpt-4", temperature=0, top_p=1, max_tokens=1024)
 
     chain = (
@@ -113,5 +133,9 @@ def main(request):
         | StrOutputParser()
     )
 
+    print("Prompting GPT...")
     answer = chain.invoke(question)
-    return (f'{{"answer": {answer}}}', 200)
+
+    print(f"Recieved completion text: {answer}")
+    resp = {"answer": answer}
+    return (json.dumps(resp), 200, headers)
