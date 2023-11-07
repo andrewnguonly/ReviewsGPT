@@ -3,7 +3,7 @@ Ask any question, get answers from Yelp reviews.
 
 > _What's the best dish to try?_
 
-ReviewsGPT is a simple RAG LLM app that scrapes Yelp reviews and queries them using OpenAI's GPT-4. The app's implementation is based off Langchain's [rag-chroma](https://github.com/langchain-ai/langchain/tree/master/templates/rag-chroma) template and productionized as a stand-alone function that can be deployed to any serverless compute platform.
+ReviewsGPT is a simple RAG LLM app that scrapes Yelp reviews and queries them using OpenAI's GPT-4. The app's implementation is based on LangChain's [rag-chroma](https://github.com/langchain-ai/langchain/tree/master/templates/rag-chroma) template and productionized as a stand-alone function that can be deployed to any serverless compute platform.
 
 # Deployment
 ## Environment Variables
